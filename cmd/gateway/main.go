@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
@@ -11,9 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gulmix/apigateway/internal/config"
-	"github.com/gulmix/apigateway/internal/loadbalancer"
-	"github.com/gulmix/apigateway/internal/middleware"
+	"github.com/gulmix/apigateway/internal/loadbalancer/algorithms"
+	"github.com/gulmix/apigateway/internal/middleware/observability"
 	"github.com/gulmix/apigateway/internal/proxy"
+	"github.com/gulmix/apigateway/internal/server"
 	"go.uber.org/zap"
 )
 
@@ -26,20 +26,17 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
-	lb := loadbalancer.NewRoundRobin(cfg.Backends)
+	lb := algorithms.NewRoundRobin(cfg.Backends)
 	handler := proxy.NewHandler(lb)
 
 	r := gin.New()
-	r.Use(middleware.Logger(logger))
+	r.Use(observability.Logger(logger))
 	r.Any("/*path", handler.ServeHTTP)
 
-	srv := &http.Server{
-		Addr:    cfg.Server.Host + ":" + cfg.Server.Port,
-		Handler: r,
-	}
+	srv := server.New(cfg.Server.Host+":"+cfg.Server.Port, r)
 
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.Run(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("listen", zap.Error(err))
 		}
 	}()
@@ -48,7 +45,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	srv.Shutdown(ctx)
+	if err := srv.Shutdown(5 * time.Second); err != nil {
+		logger.Error("shutdown", zap.Error(err))
+	}
 }

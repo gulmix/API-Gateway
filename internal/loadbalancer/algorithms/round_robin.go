@@ -1,4 +1,4 @@
-package loadbalancer
+package algorithms
 
 import "sync/atomic"
 

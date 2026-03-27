@@ -23,6 +23,6 @@ func (h *Handler) ServeHTTP(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadGateway)
 		return
 	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.ServeHTTP(c.Writer, c.Request)
+	rp := httputil.NewSingleHostReverseProxy(target)
+	rp.ServeHTTP(c.Writer, c.Request)
 }

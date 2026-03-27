@@ -1,4 +1,4 @@
-package middleware
+package observability
 
 import (
 	"time"

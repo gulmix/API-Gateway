@@ -1,0 +1,20 @@
+routes:
+  - path: "/api/v1/search"
+    rate_limit:
+      enabled: true
+      algorithm: "sliding_window"
+      scope: ["ip", "api_key"]
+      ip:
+        requests: 100
+        window: "60s"
+      api_key:
+        requests: 1000
+        window: "60s"
+  - path: "/api/v1/users"
+    rate_limit:
+      enabled: true
+      algorithm: "token_bucket"
+      scope: ["user"]
+      user:
+        requests: 500
+        window: "60s"

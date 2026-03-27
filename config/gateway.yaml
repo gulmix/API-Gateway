@@ -5,3 +5,14 @@ server:
 backends:
   - "http://backend-1:8081"
   - "http://backend-2:8082"
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 2
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+
