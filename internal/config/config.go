@@ -49,7 +49,6 @@ type ScopeLimit struct {
 }
 
 func LoadConfig() (*Config, error) {
-	// Основной конфиг: сервер, Redis, бэкенды.
 	v := viper.New()
 	v.SetConfigFile("config/gateway.yaml")
 	v.AutomaticEnv()
@@ -57,8 +56,6 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	// Маршруты хранятся отдельно в routes.yaml.
-	// Загружаем вторым viper-ом и переносим ключ "routes" в основной.
 	rv := viper.New()
 	rv.SetConfigFile("config/routes.yaml")
 	if err := rv.ReadInConfig(); err == nil {
