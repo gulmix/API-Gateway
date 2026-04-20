@@ -21,8 +21,7 @@ A production-grade API Gateway built in Go with Gin, featuring multi-algorithm r
 7. [Request Lifecycle](#request-lifecycle)
 8. [Admin API](#admin-api)
 9. [Deployment (Kubernetes)](#deployment-kubernetes)
-10. [Implementation Phases](#implementation-phases)
-11. [Key Design Decisions](#key-design-decisions)
+10. [Key Design Decisions](#key-design-decisions)
 
 ---
 

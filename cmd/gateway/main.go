@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -12,8 +13,11 @@ import (
 	"github.com/gulmix/apigateway/internal/config"
 	"github.com/gulmix/apigateway/internal/loadbalancer/algorithms"
 	"github.com/gulmix/apigateway/internal/middleware/observability"
+	"github.com/gulmix/apigateway/internal/middleware/ratelimiter"
+	"github.com/gulmix/apigateway/internal/middleware/ratelimiter/store"
 	"github.com/gulmix/apigateway/internal/proxy"
 	"github.com/gulmix/apigateway/internal/server"
+	"github.com/gulmix/apigateway/pkg/redis"
 	"go.uber.org/zap"
 )
 
@@ -26,11 +30,18 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
+	rdb := redis.NewClient(*cfg)
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		logger.Fatal("redis: ping failed", zap.Error(err))
+	}
+	rlStore := store.New(rdb)
+
 	lb := algorithms.NewRoundRobin(cfg.Backends)
 	handler := proxy.NewHandler(lb)
 
 	r := gin.New()
 	r.Use(observability.Logger(logger))
+	r.Use(ratelimiter.RateLimit(rlStore, cfg.Routes))
 	r.Any("/*path", handler.ServeHTTP)
 
 	srv := server.New(cfg.Server.Host+":"+cfg.Server.Port, r)

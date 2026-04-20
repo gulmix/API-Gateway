@@ -14,7 +14,8 @@ type Result struct {
 }
 
 type Store struct {
-	rdb *redis.Client
+	rdb   *redis.Client
+	clock func() float64
 
 	fixedWindow   *redis.Script
 	tokenBucket   *redis.Script
@@ -23,8 +24,15 @@ type Store struct {
 }
 
 func New(rdb *redis.Client) *Store {
+	return NewWithClock(rdb, func() float64 {
+		return float64(time.Now().UnixNano()) / 1e9
+	})
+}
+
+func NewWithClock(rdb *redis.Client, clock func() float64) *Store {
 	return &Store{
 		rdb:           rdb,
+		clock:         clock,
 		fixedWindow:   redis.NewScript(luaFixedWindow),
 		tokenBucket:   redis.NewScript(luaTokenBucket),
 		slidindWindow: redis.NewScript(luaSlidingWindow),
@@ -105,8 +113,7 @@ return {math.floor(tokens), allowed}
 `
 
 func (s *Store) AllowTokenBucket(ctx context.Context, key string, capacity int, refillRate float64) (Result, error) {
-	now := float64(time.Now().UnixNano()) / 1e9
-
+	now := s.clock()
 	vals, err := s.tokenBucket.Run(ctx, s.rdb, []string{key}, capacity, refillRate, now).Int64Slice()
 	if err != nil {
 		return Result{}, err
@@ -145,7 +152,7 @@ return {current + 1, 1}
 `
 
 func (s *Store) AllowSlidingWindow(ctx context.Context, key string, limit int, window time.Duration) (Result, error) {
-	nowMs := time.Now().UnixMilli()
+	nowMs := int64(s.clock() * 1000)
 	windowSec := int64(window.Seconds())
 
 	vals, err := s.slidindWindow.Run(ctx, s.rdb, []string{key}, limit, windowSec, nowMs).Int64Slice()
@@ -201,8 +208,7 @@ return {queue, allowed}
 `
 
 func (s *Store) AllowLeakyBucket(ctx context.Context, key string, rate float64, capacity int) (Result, error) {
-	now := float64(time.Now().UnixNano()) / 1e9
-
+	now := s.clock()
 	vals, err := s.leakyBucket.Run(ctx, s.rdb, []string{key}, rate, capacity, now).Int64Slice()
 	if err != nil {
 		return Result{}, err
