@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Server   ServerConfig  `mapstructure:"server"`
 	Redis    RedisConfig   `mapstructure:"redis"`
+	Cache    CacheConfig   `mapstructure:"cache"`
 	Routes   []RouteConfig `mapstructure:"routes"`
 	Backends []string      `mapstructure:"backends"`
 }
@@ -29,9 +30,21 @@ type RedisConfig struct {
 	WriteTimeout time.Duration `mapstructure:"write_timeout"`
 }
 
+type CacheConfig struct {
+	L1 struct {
+		MaxItems   int           `mapstructure:"max_items"`
+		DefaultTTL time.Duration `mapstructure:"default_ttl"`
+	} `mapstructure:"l1"`
+	L2 struct {
+		DefaultTTL time.Duration `mapstructure:"default_ttl"`
+	} `mapstructure:"l2"`
+	InvalidationChannel string `mapstructure:"invalidation_channel"`
+}
+
 type RouteConfig struct {
-	Path      string          `mapstructure:"path"`
-	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	Path      string           `mapstructure:"path"`
+	RateLimit RateLimitConfig  `mapstructure:"rate_limit"`
+	Cache     RouteCacheConfig `mapstructure:"cache"`
 }
 
 type RateLimitConfig struct {
@@ -46,6 +59,12 @@ type RateLimitConfig struct {
 type ScopeLimit struct {
 	Requests int           `mapstructure:"requests"`
 	Window   time.Duration `mapstructure:"window"`
+}
+
+type RouteCacheConfig struct {
+	Enabled bool          `mapstructure:"enabled"`
+	TTL     time.Duration `mapstructure:"ttl"`
+	Vary    []string      `mapstructure:"vary"`
 }
 
 func LoadConfig() (*Config, error) {

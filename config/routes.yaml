@@ -10,6 +10,10 @@ routes:
       api_key:
         requests: 1000
         window: "60s"
+    cache:
+      enabled: true
+      ttl: 30s
+      vary: [Accept-Language]
   - path: "/api/v1/users"
     rate_limit:
       enabled: true
@@ -18,3 +22,7 @@ routes:
       user:
         requests: 500
         window: "60s"
+    cache:
+      enabled: true
+      ttl: 30s
+      vary: [Accept-Language]

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gulmix/apigateway/internal/config"
 	"github.com/gulmix/apigateway/internal/loadbalancer/algorithms"
+	"github.com/gulmix/apigateway/internal/middleware/cache"
 	"github.com/gulmix/apigateway/internal/middleware/observability"
 	"github.com/gulmix/apigateway/internal/middleware/ratelimiter"
 	"github.com/gulmix/apigateway/internal/middleware/ratelimiter/store"
@@ -36,13 +37,28 @@ func main() {
 	}
 	rlStore := store.New(rdb)
 
+	cacheManager, err := cache.NewManager(rdb, cfg.Cache)
+	if err != nil {
+		logger.Fatal("cache: init failed", zap.Error(err))
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cacheManager.StartInvalidationSubscriber(ctx)
+
 	lb := algorithms.NewRoundRobin(cfg.Backends)
 	handler := proxy.NewHandler(lb)
 
 	r := gin.New()
 	r.Use(observability.Logger(logger))
 	r.Use(ratelimiter.RateLimit(rlStore, cfg.Routes))
+	r.Use(cacheManager.Middleware(cfg.Routes))
 	r.Any("/*path", handler.ServeHTTP)
+
+	admin := r.Group("/admin")
+	admin.DELETE("/cache", cacheManager.PurgeHandler())
+	admin.GET("/cache/stats", cacheManager.StatsHandler())
 
 	srv := server.New(cfg.Server.Host+":"+cfg.Server.Port, r)
 

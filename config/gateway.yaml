@@ -16,3 +16,10 @@ redis:
   read_timeout: "3s"
   write_timeout: "3s"
 
+cache:
+  l1:
+    max_items: 10000
+    default_ttl: 30s
+  l2:
+    default_ttl: 60s
+  invalidation_channel: "cache:invalidate"
