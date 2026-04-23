@@ -1,17 +1,24 @@
 package algorithms
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	lb "github.com/gulmix/apigateway/internal/loadbalancer"
+)
 
 type RoundRobin struct {
-	backends []string
-	counter  atomic.Uint64
+	counter atomic.Uint64
 }
 
-func NewRoundRobin(backends []string) *RoundRobin {
-	return &RoundRobin{backends: backends}
+func NewRoundRobin() *RoundRobin {
+	return &RoundRobin{}
 }
 
-func (rr *RoundRobin) Next() string {
+func (rr *RoundRobin) Next(backends []*lb.Backend, _ string) *lb.Backend {
+	healthy := lb.HealthyBackends(backends)
+	if len(healthy) == 0 {
+		return nil
+	}
 	idx := rr.counter.Add(1) - 1
-	return rr.backends[idx%uint64(len(rr.backends))]
+	return healthy[idx%uint64(len(healthy))]
 }

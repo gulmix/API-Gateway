@@ -6,20 +6,20 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gulmix/apigateway/internal/loadbalancer"
 )
 
-type Handler struct {
-	lb loadbalancer.Balancer
-}
+type Handler struct{}
 
-func NewHandler(lb loadbalancer.Balancer) *Handler {
-	return &Handler{lb: lb}
+func NewHandler() *Handler {
+	return &Handler{}
 }
 
 func (h *Handler) ServeHTTP(c *gin.Context) {
-	target, err := url.Parse(h.lb.Next())
-	if err != nil {
+	target := &url.URL{
+		Scheme: c.Request.URL.Scheme,
+		Host:   c.Request.URL.Host,
+	}
+	if target.Host == "" {
 		c.AbortWithStatus(http.StatusBadGateway)
 		return
 	}

@@ -11,7 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gulmix/apigateway/internal/config"
+	"github.com/gulmix/apigateway/internal/loadbalancer"
 	"github.com/gulmix/apigateway/internal/loadbalancer/algorithms"
+	"github.com/gulmix/apigateway/internal/loadbalancer/healthcheck"
 	"github.com/gulmix/apigateway/internal/middleware/cache"
 	"github.com/gulmix/apigateway/internal/middleware/observability"
 	"github.com/gulmix/apigateway/internal/middleware/ratelimiter"
@@ -21,6 +23,19 @@ import (
 	"github.com/gulmix/apigateway/pkg/redis"
 	"go.uber.org/zap"
 )
+
+func newAlgorithm(name string) loadbalancer.Balancer {
+	switch name {
+	case "least_connections":
+		return algorithms.NewLeastConnections()
+	case "weighted_rr":
+		return algorithms.NewWeightedRoundRobin()
+	case "consistent_hash":
+		return algorithms.NewConsistentHash()
+	default:
+		return algorithms.NewRoundRobin()
+	}
+}
 
 func main() {
 	cfg, err := config.LoadConfig()
@@ -47,13 +62,33 @@ func main() {
 
 	cacheManager.StartInvalidationSubscriber(ctx)
 
-	lb := algorithms.NewRoundRobin(cfg.Backends)
-	handler := proxy.NewHandler(lb)
+	reg := loadbalancer.NewRegistry()
+	for name, upCfg := range cfg.Upstreams {
+		alg := newAlgorithm(upCfg.Algorithm)
+		breaker := healthcheck.NewPassiveBreaker(upCfg.CircuitBreaker, logger)
+		pool := loadbalancer.NewPool(name, alg, breaker)
+		reg.Register(name, pool)
+
+		for _, bCfg := range upCfg.Backends {
+			weight := bCfg.Weight
+			if weight == 0 {
+				weight = 1
+			}
+			pool.Add(loadbalancer.NewBackend(bCfg.Addr, weight))
+		}
+
+		checker := healthcheck.NewActiveChecker(pool, name, upCfg.HealthCheck, logger)
+		checker.Start()
+		defer checker.Stop()
+	}
+
+	handler := proxy.NewHandler()
 
 	r := gin.New()
 	r.Use(observability.Logger(logger))
 	r.Use(ratelimiter.RateLimit(rlStore, cfg.Routes))
 	r.Use(cacheManager.Middleware(cfg.Routes))
+	r.Use(loadbalancer.Middleware(reg, cfg.Routes))
 	r.Any("/*path", handler.ServeHTTP)
 
 	admin := r.Group("/admin")

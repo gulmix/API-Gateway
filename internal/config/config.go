@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig  `mapstructure:"server"`
-	Redis    RedisConfig   `mapstructure:"redis"`
-	Cache    CacheConfig   `mapstructure:"cache"`
-	Routes   []RouteConfig `mapstructure:"routes"`
-	Backends []string      `mapstructure:"backends"`
+	Server    ServerConfig              `mapstructure:"server"`
+	Redis     RedisConfig               `mapstructure:"redis"`
+	Cache     CacheConfig               `mapstructure:"cache"`
+	Routes    []RouteConfig             `mapstructure:"routes"`
+	Backends  []string                  `mapstructure:"backends"`
+	Upstreams map[string]UpstreamConfig `mapstructure:"upstreams"`
 }
 
 type ServerConfig struct {
@@ -43,6 +44,8 @@ type CacheConfig struct {
 
 type RouteConfig struct {
 	Path      string           `mapstructure:"path"`
+	Upstream  string           `mapstructure:"upstream"`
+	HashKey   string           `mapstructure:"hash_key"`
 	RateLimit RateLimitConfig  `mapstructure:"rate_limit"`
 	Cache     RouteCacheConfig `mapstructure:"cache"`
 }
@@ -65,6 +68,33 @@ type RouteCacheConfig struct {
 	Enabled bool          `mapstructure:"enabled"`
 	TTL     time.Duration `mapstructure:"ttl"`
 	Vary    []string      `mapstructure:"vary"`
+}
+
+type BackendConfig struct {
+	Addr   string `mapstructure:"addr"`
+	Weight int    `mapstructure:"weight"`
+}
+
+type UpstreamConfig struct {
+	Algorithm      string               `mapstructure:"algorithm"`
+	HashKey        string               `mapstructure:"hash_key"`
+	Backends       []BackendConfig      `mapstructure:"backends"`
+	HealthCheck    HealthCheckConfig    `mapstructure:"health_check"`
+	CircuitBreaker CircuitBreakerConfig `mapstructure:"circuit_breaker"`
+}
+
+type HealthCheckConfig struct {
+	Enabled  bool          `mapstructure:"enabled"`
+	Interval time.Duration `mapstructure:"interval"`
+	Timeout  time.Duration `mapstructure:"timeout"`
+	Path     string        `mapstructure:"path"`
+}
+
+type CircuitBreakerConfig struct {
+	Threshold    float64       `mapstructure:"threshod"`
+	WindowSize   int           `mapstructure:"window_size"`
+	HalfOpenMax  int           `mapstructure:"half_open_max"`
+	RecoveryTime time.Duration `mapstructure:"recovery_time"`
 }
 
 func LoadConfig() (*Config, error) {

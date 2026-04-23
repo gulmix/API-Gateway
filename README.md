@@ -668,44 +668,6 @@ ENTRYPOINT ["/gateway"]
 
 ## Implementation Phases
 
-### Phase 1 — Core Gateway (Week 1)
-- [ ] Project scaffold: `go mod init`, directory structure, Viper config loader
-- [ ] Gin server with graceful shutdown
-- [ ] Basic reverse proxy (`httputil.ReverseProxy`) with static backend list
-- [ ] Round-robin load balancer
-- [ ] Structured logging middleware (Zap)
-- [ ] Dockerfile + docker-compose for local dev (gateway + Redis + 2 mock backends)
-
-### Phase 2 — Rate Limiter (Week 2)
-- [ ] Redis client singleton with connection pool
-- [ ] Fixed Window algorithm + Lua script
-- [ ] Token Bucket algorithm + Lua script
-- [ ] Sliding Window algorithm + Lua script
-- [ ] Leaky Bucket algorithm + Lua script
-- [ ] Scope resolver (IP / API key / user)
-- [ ] Route-level config wiring
-- [ ] Unit tests for each algorithm (mock Redis with miniredis)
-- [ ] Rate limit metrics (hits/remaining counters)
-
-### Phase 3 — Cache Layer (Week 3)
-- [ ] L1 LRU cache with TTL envelope
-- [ ] L2 Redis cache with MessagePack serialization
-- [ ] Two-layer read/write middleware
-- [ ] Cache key generation (hash of method + URL + query)
-- [ ] TTL invalidation
-- [ ] Manual purge Admin API endpoint
-- [ ] Redis pub/sub invalidation subscriber + L1 eviction on event
-- [ ] Cache hit/miss metrics
-
-### Phase 4 — Load Balancer (Week 4)
-- [ ] Backend pool with copy-on-write concurrency
-- [ ] Least Connections algorithm
-- [ ] Weighted Round Robin (smooth algorithm)
-- [ ] Consistent Hash algorithm
-- [ ] Active health checker (goroutine ticker, configurable interval + path)
-- [ ] Passive circuit breaker (failure rate threshold, half-open state)
-- [ ] Backend health metrics
-
 ### Phase 5 — Service Discovery (Week 5)
 - [ ] Kubernetes client-go setup with in-cluster config
 - [ ] Informer/Watch on Endpoints API

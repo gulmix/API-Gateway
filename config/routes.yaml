@@ -1,5 +1,7 @@
 routes:
   - path: "/api/v1/search"
+    upstream: "search-service"
+    hash_key: "ip"
     rate_limit:
       enabled: true
       algorithm: "sliding_window"
@@ -15,6 +17,8 @@ routes:
       ttl: 30s
       vary: [Accept-Language]
   - path: "/api/v1/users"
+    upstream: "order-service"
+    hash_key: "ip"
     rate_limit:
       enabled: true
       algorithm: "token_bucket"
@@ -26,3 +30,56 @@ routes:
       enabled: true
       ttl: 30s
       vary: [Accept-Language]
+upstreams:
+  search-service:
+    algorithm: least_connections
+    backends:
+      - addr: "search-1:8081"
+        weight: 1
+      - addr: "search-2:8082"
+        weight: 1
+    health_check:
+      enabled: true
+      interval: 10s
+      timeout: 2s
+      path: /health
+    circuit_breaker:
+      threshold: 0.5
+      window_size: 100
+      half_open_max: 5
+      recovery_time: 30s
+  order-service:
+    algorithm: weighted_rr
+    backends:
+      - addr: "order-1:8083"
+        weight: 2
+      - addr: "order-2:8084"
+        weight: 1
+    health_check:
+      enabled: true
+      interval: 5s
+      timeout: 1s
+      path: /ping
+    circuit_breaker:
+      threshold: 0.3
+      window_size: 50
+      half_open_max: 3
+      recovery_time: 15s
+  session-service:
+    algorithm: consistent_hash
+    hash_key: ip
+    backends:
+      - addr: "session-1:8085"
+        weight: 1
+      - addr: "session-2:8086"
+        weight: 1
+    health_check:
+      enabled: true
+      interval: 10s
+      timeout: 2s
+      path: /health
+    circuit_breaker:
+      threshold: 0.5
+      window_size: 100
+      half_open_max: 5
+      recovery_time: 30s
