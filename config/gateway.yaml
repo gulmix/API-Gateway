@@ -23,3 +23,9 @@ cache:
   l2:
     default_ttl: 60s
   invalidation_channel: "cache:invalidate"
+
+discovery:
+  enabled: false
+  namespace: "default"
+  kubeconfig: ""
+  annotation_prefix: "gateway.io"

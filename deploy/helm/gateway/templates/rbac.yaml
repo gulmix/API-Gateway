@@ -1,0 +1,53 @@
+{{- if .Values.discovery.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "gateway.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.discovery.clusterWide }}
+kind: ClusterRole
+{{- else }}
+kind: Role
+{{- end }}
+metadata:
+  name: {{ include "gateway.fullname" . }}-discovery
+  {{- if not .Values.discovery.clusterWide }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.discovery.clusterWide }}
+kind: ClusterRoleBinding
+{{- else }}
+kind: RoleBinding
+{{- end }}
+metadata:
+  name: {{ include "gateway.fullname" . }}-discovery
+  {{- if not .Values.discovery.clusterWide }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  {{- if .Values.discovery.clusterWide }}
+  kind: ClusterRole
+  {{- else }}
+  kind: Role
+  {{- end }}
+  name: {{ include "gateway.fullname" . }}-discovery
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "gateway.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

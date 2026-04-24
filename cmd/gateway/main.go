@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gulmix/apigateway/internal/config"
+	"github.com/gulmix/apigateway/internal/discovery"
 	"github.com/gulmix/apigateway/internal/loadbalancer"
 	"github.com/gulmix/apigateway/internal/loadbalancer/algorithms"
 	"github.com/gulmix/apigateway/internal/loadbalancer/healthcheck"
@@ -80,6 +81,15 @@ func main() {
 		checker := healthcheck.NewActiveChecker(pool, name, upCfg.HealthCheck, logger)
 		checker.Start()
 		defer checker.Stop()
+	}
+
+	if cfg.Discovery.Enabled {
+		kubeClient, err := discovery.NewKubeClient(cfg.Discovery.Kubeconfig)
+		if err != nil {
+			logger.Fatal("discovery: failed to build kube client", zap.Error(err))
+		}
+		ctrl := discovery.NewController(kubeClient, reg, cfg.Discovery, logger)
+		go ctrl.Run(ctx)
 	}
 
 	handler := proxy.NewHandler()

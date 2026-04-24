@@ -13,6 +13,7 @@ type Config struct {
 	Routes    []RouteConfig             `mapstructure:"routes"`
 	Backends  []string                  `mapstructure:"backends"`
 	Upstreams map[string]UpstreamConfig `mapstructure:"upstreams"`
+	Discovery DiscoveryConfig           `mapstructure:"discovery"`
 }
 
 type ServerConfig struct {
@@ -95,6 +96,13 @@ type CircuitBreakerConfig struct {
 	WindowSize   int           `mapstructure:"window_size"`
 	HalfOpenMax  int           `mapstructure:"half_open_max"`
 	RecoveryTime time.Duration `mapstructure:"recovery_time"`
+}
+
+type DiscoveryConfig struct {
+	Enabled           bool   `mapstructure:"enabled"`
+	Namespace         string `mapstructure:"namespace"`
+	Kubeconfig        string `mapstructure:"kubeconfig"`
+	AnnotationsPrefix string `mapstructure:"annotation_prefix"`
 }
 
 func LoadConfig() (*Config, error) {

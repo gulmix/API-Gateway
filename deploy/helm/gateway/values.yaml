@@ -1,0 +1,29 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/gulmix/apigateway
+  pullPolicy: IfNotPresent
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+discovery:
+  enabled: false
+  namespace: "default"  
+  clusterWide: false   
+  annotationPrefix: "gateway.io"
+
+redis:
+  addr: "redis:6379"
+  password: ""
+  db: 0
+
+config:
+  server:
+    host: "0.0.0.0"
+    port: "8080"
