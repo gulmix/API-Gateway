@@ -668,22 +668,6 @@ ENTRYPOINT ["/gateway"]
 
 ## Implementation Phases
 
-### Phase 5 — Service Discovery (Week 5)
-- [ ] Kubernetes client-go setup with in-cluster config
-- [ ] Informer/Watch on Endpoints API
-- [ ] Annotation-based upstream mapping
-- [ ] Registry thread-safe register/deregister
-- [ ] RBAC Helm templates
-- [ ] Fallback: static backend list if discovery disabled
-
-### Phase 6 — Auth (Week 6)
-- [ ] API key Redis schema + CRUD admin endpoints
-- [ ] API key middleware (header extraction + Redis lookup)
-- [ ] JWKS fetcher with in-process cache + refresh on unknown `kid`
-- [ ] JWT validation middleware (signature, expiry, iss, aud)
-- [ ] Combined auth middleware with fallback chain
-- [ ] Auth identity propagation to rate limiter + upstream headers
-
 ### Phase 7 — Observability (Week 7)
 - [ ] OTel tracer init with OTLP gRPC exporter
 - [ ] Span creation in each middleware (auth, rate limit, cache, proxy)

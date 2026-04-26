@@ -1,7 +1,7 @@
 routes:
   - path: "/api/v1/search"
     upstream: "search-service"
-    hash_key: "ip"
+    auth: required
     rate_limit:
       enabled: true
       algorithm: "sliding_window"
@@ -16,9 +16,10 @@ routes:
       enabled: true
       ttl: 30s
       vary: [Accept-Language]
-  - path: "/api/v1/users"
+
+  - path: "/api/v1/orders"
     upstream: "order-service"
-    hash_key: "ip"
+    auth: none
     rate_limit:
       enabled: true
       algorithm: "token_bucket"
@@ -30,6 +31,21 @@ routes:
       enabled: true
       ttl: 30s
       vary: [Accept-Language]
+
+  - path: "/api/v1/sessions"
+    upstream: "session-service"
+    auth: required
+    hash_key: "header:X-Session-ID"
+    rate_limit:
+      enabled: true
+      algorithm: "sliding_window"
+      scope: ["ip"]
+      ip:
+        requests: 200
+        window: "60s"
+    cache:
+      enabled: false
+
 upstreams:
   search-service:
     algorithm: least_connections
@@ -48,6 +64,7 @@ upstreams:
       window_size: 100
       half_open_max: 5
       recovery_time: 30s
+
   order-service:
     algorithm: weighted_rr
     backends:
@@ -65,9 +82,9 @@ upstreams:
       window_size: 50
       half_open_max: 3
       recovery_time: 15s
+
   session-service:
     algorithm: consistent_hash
-    hash_key: ip
     backends:
       - addr: "session-1:8085"
         weight: 1

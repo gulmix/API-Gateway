@@ -10,6 +10,7 @@ type Config struct {
 	Server    ServerConfig              `mapstructure:"server"`
 	Redis     RedisConfig               `mapstructure:"redis"`
 	Cache     CacheConfig               `mapstructure:"cache"`
+	Auth      AuthConfig                `mapstructure:"auth"`
 	Routes    []RouteConfig             `mapstructure:"routes"`
 	Backends  []string                  `mapstructure:"backends"`
 	Upstreams map[string]UpstreamConfig `mapstructure:"upstreams"`
@@ -47,6 +48,7 @@ type RouteConfig struct {
 	Path      string           `mapstructure:"path"`
 	Upstream  string           `mapstructure:"upstream"`
 	HashKey   string           `mapstructure:"hash_key"`
+	Auth      string           `mapstructure:"auth"`
 	RateLimit RateLimitConfig  `mapstructure:"rate_limit"`
 	Cache     RouteCacheConfig `mapstructure:"cache"`
 }
@@ -92,7 +94,7 @@ type HealthCheckConfig struct {
 }
 
 type CircuitBreakerConfig struct {
-	Threshold    float64       `mapstructure:"threshod"`
+	Threshold    float64       `mapstructure:"threshold"`
 	WindowSize   int           `mapstructure:"window_size"`
 	HalfOpenMax  int           `mapstructure:"half_open_max"`
 	RecoveryTime time.Duration `mapstructure:"recovery_time"`
@@ -103,6 +105,22 @@ type DiscoveryConfig struct {
 	Namespace         string `mapstructure:"namespace"`
 	Kubeconfig        string `mapstructure:"kubeconfig"`
 	AnnotationsPrefix string `mapstructure:"annotation_prefix"`
+}
+
+type AuthConfig struct {
+	JWT     JWTConfig    `mapstructure:"jwt"`
+	APIKeys APIKeyConfig `mapstructure:"api_keys"`
+}
+
+type JWTConfig struct {
+	JWKSUrl      string        `mapstructure:"jwks_url"`
+	Issuer       string        `mapstructure:"issuer"`
+	Audience     string        `mapstructure:"audience"`
+	JWKSCacheTTL time.Duration `mapstructure:"jwks_cache_ttl"`
+}
+
+type APIKeyConfig struct {
+	Header string `mapstructure:"header"` // default: X-API-Key
 }
 
 func LoadConfig() (*Config, error) {
@@ -117,6 +135,7 @@ func LoadConfig() (*Config, error) {
 	rv.SetConfigFile("config/routes.yaml")
 	if err := rv.ReadInConfig(); err == nil {
 		v.Set("routes", rv.Get("routes"))
+		v.Set("upstreams", rv.Get("upstreams"))
 	}
 
 	var cfg Config

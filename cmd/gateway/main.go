@@ -15,6 +15,7 @@ import (
 	"github.com/gulmix/apigateway/internal/loadbalancer"
 	"github.com/gulmix/apigateway/internal/loadbalancer/algorithms"
 	"github.com/gulmix/apigateway/internal/loadbalancer/healthcheck"
+	"github.com/gulmix/apigateway/internal/middleware/auth"
 	"github.com/gulmix/apigateway/internal/middleware/cache"
 	"github.com/gulmix/apigateway/internal/middleware/observability"
 	"github.com/gulmix/apigateway/internal/middleware/ratelimiter"
@@ -96,6 +97,7 @@ func main() {
 
 	r := gin.New()
 	r.Use(observability.Logger(logger))
+	r.Use(auth.Middleware(rdb, cfg.Auth, cfg.Routes))
 	r.Use(ratelimiter.RateLimit(rlStore, cfg.Routes))
 	r.Use(cacheManager.Middleware(cfg.Routes))
 	r.Use(loadbalancer.Middleware(reg, cfg.Routes))
@@ -104,6 +106,9 @@ func main() {
 	admin := r.Group("/admin")
 	admin.DELETE("/cache", cacheManager.PurgeHandler())
 	admin.GET("/cache/stats", cacheManager.StatsHandler())
+	admin.POST("/api-keys", auth.CreateAPIKeyHandler(rdb))
+	admin.DELETE("/api-keys/:key", auth.DeleteAPIKeyHandler(rdb))
+	admin.GET("/api-keys/:key", auth.GetAPIKeyHandler(rdb))
 
 	srv := server.New(cfg.Server.Host+":"+cfg.Server.Port, r)
 

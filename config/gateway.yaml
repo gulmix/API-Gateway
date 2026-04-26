@@ -29,3 +29,12 @@ discovery:
   namespace: "default"
   kubeconfig: ""
   annotation_prefix: "gateway.io"
+
+auth:
+  jwt:
+    jwks_url: "https://auth.example.com/.well-known/jwks.json"
+    issuer: "https://auth.example.com"
+    audience: "api.example.com"
+    jwks_cache_ttl: 5m
+  api_keys:
+    header: "X-API-Key"
