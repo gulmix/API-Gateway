@@ -6,7 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gulmix/apigateway/internal/config"
+	"github.com/gulmix/apigateway/internal/middleware/observability"
 	"github.com/redis/go-redis/v9"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 const (
@@ -30,17 +32,24 @@ func Middleware(rdb *redis.Client, cfg config.AuthConfig, routes []config.RouteC
 			return
 		}
 
+		ctx, span := observability.Tracer().Start(c.Request.Context(), "auth")
+		c.Request = c.Request.WithContext(ctx)
+		defer span.End()
+
 		if ok := apiKeyMiddleware.tryAuth(c); ok {
+			span.SetAttributes(semconv.EnduserID(c.GetString(CtxOwner)))
 			c.Next()
 			return
 		}
 
 		if ok := jwtMiddleware.tryAuth(c); ok {
+			span.SetAttributes(semconv.EnduserID(c.GetString(CtxUser)))
 			c.Next()
 			return
 		}
 
 		if mode == "required" {
+			span.SetAttributes(semconv.HTTPResponseStatusCode(http.StatusUnauthorized))
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}

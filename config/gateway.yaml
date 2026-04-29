@@ -38,3 +38,13 @@ auth:
     jwks_cache_ttl: 5m
   api_keys:
     header: "X-API-Key"
+
+observability:
+  log_level: info
+  tracing:
+    enabled: true
+    otlp_endpoint: "otel-collector:4317"
+    sampling_rate: 1.0
+  metrics:
+    enabled: true
+    path: /metrics

@@ -10,7 +10,9 @@ import (
 	"github.com/gulmix/apigateway/internal/config"
 	"github.com/gulmix/apigateway/internal/middleware/cache/l1"
 	"github.com/gulmix/apigateway/internal/middleware/cache/l2"
+	"github.com/gulmix/apigateway/internal/middleware/observability"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Manager struct {
@@ -47,6 +49,11 @@ func (m *Manager) Middleware(routes []config.RouteConfig) gin.HandlerFunc {
 			c.Next()
 			return
 		}
+
+		ctx, span := observability.Tracer().Start(c.Request.Context(), "cache_lookup")
+		c.Request = c.Request.WithContext(ctx)
+		defer span.End()
+
 		ttl := entry.ttl
 		vary := entry.vary
 		if ttl == 0 {
@@ -57,18 +64,23 @@ func (m *Manager) Middleware(routes []config.RouteConfig) gin.HandlerFunc {
 		route := c.Request.URL.Path
 
 		if body, headers, status, ok := m.l1.Get(key); ok {
+			span.SetAttributes(attribute.String("cache.layer", "l1"), attribute.Bool("cache.hit", true))
+			c.Set("cache.hit_layer", "l1")
 			writeFromCache(c, body, headers, status)
 			recordHit("l1", route)
 			return
 		}
 
 		if resp, err := m.l2.Get(c.Request.Context(), key); err == nil && resp != nil {
+			span.SetAttributes(attribute.String("cache.layer", "l2"), attribute.Bool("cache.hit", true))
+			c.Set("cache.hit_layer", "l2")
 			m.l1.Set(key, resp.Body, resp.Headers, resp.Status, m.cfg.L1.DefaultTTL)
 			writeFromCache(c, resp.Body, resp.Headers, resp.Status)
 			recordHit("l2", route)
 			return
 		}
 
+		span.SetAttributes(attribute.Bool("cache.hit", false))
 		recordMisses(route)
 
 		cap := &responseCapture{ResponseWriter: c.Writer, buf: &bytes.Buffer{}}

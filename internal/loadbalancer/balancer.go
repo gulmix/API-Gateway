@@ -50,6 +50,7 @@ func Middleware(reg *Registry, routes []config.RouteConfig) gin.HandlerFunc {
 
 		c.Set("lb.backend", b)
 		c.Set("lb.pool", pool)
+		c.Set("lb.upstream", entry.upstream)
 
 		c.Request.URL.Scheme = "http"
 		c.Request.URL.Host = b.Addr

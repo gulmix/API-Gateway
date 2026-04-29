@@ -7,14 +7,15 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig              `mapstructure:"server"`
-	Redis     RedisConfig               `mapstructure:"redis"`
-	Cache     CacheConfig               `mapstructure:"cache"`
-	Auth      AuthConfig                `mapstructure:"auth"`
-	Routes    []RouteConfig             `mapstructure:"routes"`
-	Backends  []string                  `mapstructure:"backends"`
-	Upstreams map[string]UpstreamConfig `mapstructure:"upstreams"`
-	Discovery DiscoveryConfig           `mapstructure:"discovery"`
+	Server        ServerConfig              `mapstructure:"server"`
+	Redis         RedisConfig               `mapstructure:"redis"`
+	Cache         CacheConfig               `mapstructure:"cache"`
+	Auth          AuthConfig                `mapstructure:"auth"`
+	Routes        []RouteConfig             `mapstructure:"routes"`
+	Backends      []string                  `mapstructure:"backends"`
+	Upstreams     map[string]UpstreamConfig `mapstructure:"upstreams"`
+	Discovery     DiscoveryConfig           `mapstructure:"discovery"`
+	Observability ObservabilityConfig       `mapstructure:"observability"`
 }
 
 type ServerConfig struct {
@@ -121,6 +122,23 @@ type JWTConfig struct {
 
 type APIKeyConfig struct {
 	Header string `mapstructure:"header"` // default: X-API-Key
+}
+
+type ObservabilityConfig struct {
+	LogLevel string        `mapstructure:"log_level"`
+	Tracing  TracingConfig `mapstructure:"tracing"`
+	Metrics  MetricsConfig `mapstructure:"metrics"`
+}
+
+type TracingConfig struct {
+	Enabled      bool    `mapstructure:"enabled"`
+	OTLPEndpoint string  `mapstructure:"otlp_endpoint"`
+	SamplingRate float64 `mapstructure:"sampling_rate"`
+}
+
+type MetricsConfig struct {
+	Enabled bool   `mapstructure:"enabled"`
+	Path    string `mapstructure:"path"`
 }
 
 func LoadConfig() (*Config, error) {

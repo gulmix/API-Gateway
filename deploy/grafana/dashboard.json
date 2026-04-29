@@ -1,0 +1,199 @@
+{
+    "__inputs": [
+        {
+            "name": "DS_PROMETHEUS",
+            "type": "datasource",
+            "pluginId": "prometheus"
+        }
+    ],
+    "__requires": [
+        {
+            "type": "grafana",
+            "id": "grafana",
+            "version": "10.0.0"
+        }
+    ],
+    "title": "API Gateway",
+    "uid": "api-gateway-overview",
+    "schemaVersion": 38,
+    "refresh": "30s",
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "templating": {
+        "list": [
+            {
+                "name": "upstream",
+                "type": "query",
+                "datasource": "${DS_PROMETHEUS}",
+                "definition": "label_values(gateway_requests_total, upstream)",
+                "refresh": 2
+            }
+        ]
+    },
+    "panels": [
+        {
+            "id": 1,
+            "type": "timeseries",
+            "title": "Request Rate (RPS)",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum(rate(gateway_requests_total[1m])) by (upstream)",
+                    "legendFormat": "{{upstream}}"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "type": "timeseries",
+            "title": "Request Latency p50 / p95 / p99",
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.50, sum(rate(gateway_request_duration_seconds_bucket[1m])) by (le, upstream))",
+                    "legendFormat": "p50 {{upstream}}"
+                },
+                {
+                    "expr": "histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket[1m])) by (le, upstream))",
+                    "legendFormat": "p95 {{upstream}}"
+                },
+                {
+                    "expr": "histogram_quantile(0.99, sum(rate(gateway_request_duration_seconds_bucket[1m])) by (le, upstream))",
+                    "legendFormat": "p99 {{upstream}}"
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "type": "timeseries",
+            "title": "Error Rate (4xx/5xx)",
+            "gridPos": {
+                "x": 0,
+                "y": 8,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum(rate(gateway_requests_total{status=~\"4..|5..\"}[1m])) by (status, upstream)",
+                    "legendFormat": "{{status}} {{upstream}}"
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "type": "timeseries",
+            "title": "Cache Hit Rate",
+            "gridPos": {
+                "x": 12,
+                "y": 8,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum(rate(gateway_cache_hits_total{layer=\"l1\"}[1m])) by (route)",
+                    "legendFormat": "L1 hit {{route}}"
+                },
+                {
+                    "expr": "sum(rate(gateway_cache_hits_total{layer=\"l2\"}[1m])) by (route)",
+                    "legendFormat": "L2 hit {{route}}"
+                },
+                {
+                    "expr": "sum(rate(gateway_cache_misses_total[1m])) by (route)",
+                    "legendFormat": "miss {{route}}"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "type": "timeseries",
+            "title": "Rate Limit Rejections",
+            "gridPos": {
+                "x": 0,
+                "y": 16,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum(rate(gateway_rate_limit_hits_total{result=\"rejected\"}[1m])) by (scope, route)",
+                    "legendFormat": "{{scope}} {{route}}"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "type": "timeseries",
+            "title": "Active Connections per Backend",
+            "gridPos": {
+                "x": 12,
+                "y": 16,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "gateway_upstream_active_connections",
+                    "legendFormat": "{{upstream}} / {{backend}}"
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "type": "stat",
+            "title": "Backend Health",
+            "gridPos": {
+                "x": 0,
+                "y": 24,
+                "w": 24,
+                "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                },
+                "colorMode": "background",
+                "thresholds": {
+                    "steps": [
+                        {
+                            "color": "red",
+                            "value": 0
+                        },
+                        {
+                            "color": "green",
+                            "value": 1
+                        }
+                    ]
+                }
+            },
+            "targets": [
+                {
+                    "expr": "gateway_upstream_health",
+                    "legendFormat": "{{upstream}} / {{backend}}"
+                }
+            ]
+        }
+    ]
+}

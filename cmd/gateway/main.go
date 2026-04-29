@@ -45,8 +45,22 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
-	logger, _ := zap.NewProduction()
+	logger, err := observability.NewLogger(cfg.Observability.LogLevel)
+	if err != nil {
+		log.Fatalf("logger: %v", err)
+	}
 	defer logger.Sync()
+
+	if cfg.Observability.Tracing.Enabled {
+		shutdown, err := observability.InitTracer(
+			cfg.Observability.Tracing.OTLPEndpoint,
+			cfg.Observability.Tracing.SamplingRate,
+		)
+		if err != nil {
+			logger.Fatal("tracer init failed", zap.Error(err))
+		}
+		defer shutdown(context.Background())
+	}
 
 	rdb := redis.NewClient(*cfg)
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
@@ -96,6 +110,8 @@ func main() {
 	handler := proxy.NewHandler()
 
 	r := gin.New()
+	r.Use(observability.TracingMiddleware())
+	r.Use(observability.MetricsMiddleware())
 	r.Use(observability.Logger(logger))
 	r.Use(auth.Middleware(rdb, cfg.Auth, cfg.Routes))
 	r.Use(ratelimiter.RateLimit(rlStore, cfg.Routes))
@@ -109,6 +125,11 @@ func main() {
 	admin.POST("/api-keys", auth.CreateAPIKeyHandler(rdb))
 	admin.DELETE("/api-keys/:key", auth.DeleteAPIKeyHandler(rdb))
 	admin.GET("/api-keys/:key", auth.GetAPIKeyHandler(rdb))
+	admin.PUT("/log-level", observability.LogLevelHandler())
+	admin.GET("/log-level", func(c *gin.Context) {
+		c.JSON(200, gin.H{"level": observability.GetLogLevel()})
+	})
+	r.GET("/metrics", observability.MetricsHandler())
 
 	srv := server.New(cfg.Server.Host+":"+cfg.Server.Port, r)
 
