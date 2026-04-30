@@ -19,8 +19,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port string `mapstructure:"port"`
-	Host string `mapstructure:"host"`
+	Port      string `mapstructure:"port"`
+	Host      string `mapstructure:"host"`
+	AdminPort string `mapstructure:"admin_port"`
 }
 
 type RedisConfig struct {
@@ -144,6 +145,7 @@ type MetricsConfig struct {
 func LoadConfig() (*Config, error) {
 	v := viper.New()
 	v.SetConfigFile("config/gateway.yaml")
+	v.SetDefault("server.admin_port", "9090")
 	v.AutomaticEnv()
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err

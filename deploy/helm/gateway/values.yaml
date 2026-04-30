@@ -1,4 +1,4 @@
-replicaCount: 1
+replicaCount: 2
 
 image:
   repository: ghcr.io/gulmix/apigateway
@@ -11,11 +11,40 @@ fullnameOverride: ""
 service:
   type: ClusterIP
   port: 8080
+  adminPort: 9090
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+
+# HPA — requires Prometheus Adapter configured with gateway_requests_per_second metric rule
+# See: deploy/prometheus-adapter-rules.yaml for the required PrometheusRule
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  # Target average requests per second per pod before scaling out
+  targetRequestsPerSecond: "100"
+
+# ServiceMonitor for prometheus-operator (kube-prometheus-stack)
+serviceMonitor:
+  enabled: true
+  interval: "15s"
+  path: /metrics
+  # Additional labels to match your Prometheus release's serviceMonitorSelector
+  labels: {}
+
+networkPolicy:
+  enabled: true
 
 discovery:
   enabled: false
-  namespace: "default"  
-  clusterWide: false   
+  namespace: "default"
+  clusterWide: false
   annotationPrefix: "gateway.io"
 
 redis:
@@ -23,7 +52,35 @@ redis:
   password: ""
   db: 0
 
+# Structured values used to render gateway.yaml in the ConfigMap
 config:
   server:
     host: "0.0.0.0"
     port: "8080"
+    adminPort: "9090"
+  cache:
+    l1:
+      maxItems: 10000
+      defaultTTL: "30s"
+    l2:
+      defaultTTL: "60s"
+  auth:
+    jwt:
+      jwksUrl: "https://auth.example.com/.well-known/jwks.json"
+      issuer: "https://auth.example.com"
+      audience: "api.example.com"
+      jwksCacheTTL: "5m"
+  observability:
+    logLevel: "info"
+    tracing:
+      enabled: false
+      otlpEndpoint: "otel-collector:4317"
+      samplingRate: "0.1"
+    metrics:
+      enabled: true
+      path: "/metrics"
+
+# Raw routes.yaml content — override with your own routes and upstreams
+routesContent: |
+  routes: []
+  upstreams: {}

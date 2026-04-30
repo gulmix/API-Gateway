@@ -1,0 +1,26 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "gateway.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "gateway.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Proxy port: allow traffic from any source (Ingress controller, other pods)
+    - ports:
+        - protocol: TCP
+          port: 8080
+    # Admin port: allow only from pods within the cluster (blocks external traffic)
+    - ports:
+        - protocol: TCP
+          port: 9090
+      from:
+        - namespaceSelector: {}
+{{- end }}

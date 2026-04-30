@@ -666,25 +666,79 @@ ENTRYPOINT ["/gateway"]
 
 ---
 
-## Implementation Phases
+## Kubernetes Deployment
 
-### Phase 7 — Observability (Week 7)
-- [ ] OTel tracer init with OTLP gRPC exporter
-- [ ] Span creation in each middleware (auth, rate limit, cache, proxy)
-- [ ] traceparent injection into upstream requests
-- [ ] Prometheus metrics registration + /metrics endpoint
-- [ ] All metrics from the metrics table above
-- [ ] Grafana dashboard JSON for requests, latency, cache, rate limits, backends
-- [ ] Runtime log level change Admin API endpoint
+### Helm chart
 
-### Phase 8 — Kubernetes & Hardening (Week 8)
-- [ ] Helm chart with all templates
-- [ ] HPA with custom Prometheus metric
-- [ ] ServiceMonitor for Prometheus Operator
-- [ ] Network policy: admin port blocked from outside cluster
-- [ ] Integration tests: full request lifecycle with real Redis (testcontainers-go)
-- [ ] Load test with k6: validate rate limits, cache behavior, LB distribution
-- [ ] README final review
+```bash
+# Install with default values (discovery disabled, single Redis)
+helm install gateway ./deploy/helm/gateway \
+  --set redis.addr=redis:6379 \
+  --set image.tag=latest
+
+# Enable service discovery across the whole cluster
+helm upgrade gateway ./deploy/helm/gateway \
+  --set discovery.enabled=true \
+  --set discovery.clusterWide=true
+
+# Supply your own routes
+helm upgrade gateway ./deploy/helm/gateway \
+  --set-string routesContent="$(cat config/routes.yaml)"
+```
+
+### HPA — custom Prometheus metric
+
+The HPA scales on `gateway_requests_per_second` (average per pod).  
+This metric is served by [Prometheus Adapter](https://github.com/kubernetes-sigs/prometheus-adapter) using the following rule in its ConfigMap:
+
+```yaml
+rules:
+  - seriesQuery: 'gateway_requests_total{namespace!="",pod!=""}'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+        pod:       {resource: "pod"}
+    name:
+      matches: "^(.*)_total$"
+      as: "${1}_per_second"
+    metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (<<.GroupBy>>)'
+```
+
+Target: scale out when average RPS per pod exceeds `autoscaling.targetRequestsPerSecond` (default 100).
+
+### Admin port & NetworkPolicy
+
+The gateway runs two listeners:
+
+| Port | Purpose | External access |
+|------|---------|----------------|
+| 8080 | Proxy (user traffic) | Allowed via Ingress |
+| 9090 | Admin API + `/metrics` | Blocked — in-cluster only |
+
+The NetworkPolicy (`networkPolicy.enabled=true`) enforces this by only permitting pod-sourced traffic to port 9090. External traffic that bypasses the Ingress controller cannot reach the admin endpoints.
+
+### Integration tests
+
+Requires Docker (testcontainers-go spins up a real Redis container).
+
+```bash
+go test -tags=integration -v ./tests/integration/...
+```
+
+### Load tests (k6)
+
+Install k6: https://k6.io/docs/get-started/installation
+
+```bash
+# Validate rate limits
+k6 run --env BASE_URL=http://localhost:8080 tests/load/rate_limit.js
+
+# Cache effectiveness (expects ≥90 % hit rate after warm-up)
+k6 run --env BASE_URL=http://localhost:8080 tests/load/cache.js
+
+# LB distribution (expects 40–60 % per backend)
+k6 run --env BASE_URL=http://localhost:8080 tests/load/lb_distribution.js
+```
 
 ---
 

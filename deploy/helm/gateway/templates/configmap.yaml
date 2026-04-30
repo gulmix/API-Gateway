@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gateway.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+data:
+  gateway.yaml: |
+    server:
+      host: {{ .Values.config.server.host | quote }}
+      port: {{ .Values.config.server.port | quote }}
+      admin_port: {{ .Values.config.server.adminPort | quote }}
+    redis:
+      addr: {{ .Values.redis.addr | quote }}
+      password: {{ .Values.redis.password | quote }}
+      db: {{ .Values.redis.db }}
+      pool_size: 10
+      min_idle_conns: 2
+      dial_timeout: "5s"
+      read_timeout: "3s"
+      write_timeout: "3s"
+    cache:
+      l1:
+        max_items: {{ .Values.config.cache.l1.maxItems }}
+        default_ttl: {{ .Values.config.cache.l1.defaultTTL }}
+      l2:
+        default_ttl: {{ .Values.config.cache.l2.defaultTTL }}
+      invalidation_channel: "cache:invalidate"
+    discovery:
+      enabled: {{ .Values.discovery.enabled }}
+      namespace: {{ .Values.discovery.namespace | quote }}
+      annotation_prefix: {{ .Values.discovery.annotationPrefix | quote }}
+    auth:
+      jwt:
+        jwks_url: {{ .Values.config.auth.jwt.jwksUrl | quote }}
+        issuer: {{ .Values.config.auth.jwt.issuer | quote }}
+        audience: {{ .Values.config.auth.jwt.audience | quote }}
+        jwks_cache_ttl: {{ .Values.config.auth.jwt.jwksCacheTTL }}
+      api_keys:
+        header: "X-API-Key"
+    observability:
+      log_level: {{ .Values.config.observability.logLevel }}
+      tracing:
+        enabled: {{ .Values.config.observability.tracing.enabled }}
+        otlp_endpoint: {{ .Values.config.observability.tracing.otlpEndpoint | quote }}
+        sampling_rate: {{ .Values.config.observability.tracing.samplingRate }}
+      metrics:
+        enabled: {{ .Values.config.observability.metrics.enabled }}
+        path: {{ .Values.config.observability.metrics.path }}
+  routes.yaml: |
+    {{- .Values.routesContent | nindent 4 }}

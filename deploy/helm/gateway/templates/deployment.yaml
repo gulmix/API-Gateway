@@ -6,12 +6,16 @@ metadata:
   labels:
     {{- include "gateway.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "gateway.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
         {{- include "gateway.selectorLabels" . | nindent 8 }}
     spec:
@@ -26,8 +30,35 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            - name: admin
+              containerPort: 9090
+              protocol: TCP
           env:
             - name: REDIS_ADDR
               value: {{ .Values.redis.addr | quote }}
             - name: REDIS_PASSWORD
               value: {{ .Values.redis.password | quote }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: admin
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: admin
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "gateway.fullname" . }}-config

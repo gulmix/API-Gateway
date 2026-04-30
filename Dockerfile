@@ -11,5 +11,5 @@ WORKDIR /app
 COPY --from=builder /app/gateway .
 COPY --from=builder /app/mockbackend .
 COPY config/ config/
-EXPOSE 8080
+EXPOSE 8080 9090
 CMD ["./gateway"]

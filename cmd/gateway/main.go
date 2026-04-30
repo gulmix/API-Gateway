@@ -119,7 +119,23 @@ func main() {
 	r.Use(loadbalancer.Middleware(reg, cfg.Routes))
 	r.Any("/*path", handler.ServeHTTP)
 
-	admin := r.Group("/admin")
+	// Admin server on a separate port — not reachable from outside the cluster
+	adminRouter := gin.New()
+	adminRouter.Use(observability.Logger(logger))
+
+	adminRouter.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+	adminRouter.GET("/ready", func(c *gin.Context) {
+		if err := rdb.Ping(c.Request.Context()).Err(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	})
+	adminRouter.GET("/metrics", observability.MetricsHandler())
+
+	admin := adminRouter.Group("/admin")
 	admin.DELETE("/cache", cacheManager.PurgeHandler())
 	admin.GET("/cache/stats", cacheManager.StatsHandler())
 	admin.POST("/api-keys", auth.CreateAPIKeyHandler(rdb))
@@ -129,13 +145,18 @@ func main() {
 	admin.GET("/log-level", func(c *gin.Context) {
 		c.JSON(200, gin.H{"level": observability.GetLogLevel()})
 	})
-	r.GET("/metrics", observability.MetricsHandler())
 
 	srv := server.New(cfg.Server.Host+":"+cfg.Server.Port, r)
+	adminSrv := server.New(cfg.Server.Host+":"+cfg.Server.AdminPort, adminRouter)
 
 	go func() {
 		if err := srv.Run(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("listen", zap.Error(err))
+		}
+	}()
+	go func() {
+		if err := adminSrv.Run(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("admin listen", zap.Error(err))
 		}
 	}()
 
@@ -145,5 +166,8 @@ func main() {
 
 	if err := srv.Shutdown(5 * time.Second); err != nil {
 		logger.Error("shutdown", zap.Error(err))
+	}
+	if err := adminSrv.Shutdown(5 * time.Second); err != nil {
+		logger.Error("admin shutdown", zap.Error(err))
 	}
 }
